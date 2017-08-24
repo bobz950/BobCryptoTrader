@@ -8,7 +8,7 @@ using namespace currencies;
 class ExchangeAPI {
 public:
 	virtual pairVect getCurrencPairs() = 0;
-	virtual json getCurrencyInfo(vector<string>&) = 0;
+	virtual vector<currency> getCurrencies() = 0;
 	virtual float getCurrentUSDPrice(string&) = 0;
 	virtual json getTickerInfo(vector<string>&) = 0;
 

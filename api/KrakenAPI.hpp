@@ -10,7 +10,7 @@ public:
 	KrakenAPI(string apikey, string secret);
 	~KrakenAPI();
 	pairVect getCurrencPairs();
-	json getCurrencyInfo(vector<string>&);
+	vector<currency> getCurrencies();
 	float getCurrentUSDPrice(string&);
 	json getTickerInfo(vector<string>&);
 

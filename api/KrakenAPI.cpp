@@ -36,20 +36,20 @@ pairVect KrakenAPI::getCurrencPairs() {
 	catch (exception& e) { printf(e.what()); }
 	return pairs;
 }
-json KrakenAPI::getCurrencyInfo(vector<string>& currencies) { 
-	if (currencies.size() == 0)
-		return json();
-	string currencyList = currencies.front();
-
-	for (vector<string>::iterator it = currencies.begin() + 1; it != currencies.end(); it++)
-		currencyList += "," + *it;
-
-	paramVect params{ pair<string, string>("asset", currencyList) };
+//get all supported currencies
+vector<currency> KrakenAPI::getCurrencies() {
+	vector<currency> currencyVect;
 	json j;
-	if (this->sendRequest(RequestMethod::PUBLIC, "Assets", j, &params) == kraken::OK)
-		return j;
+	if (!this->sendRequest(RequestMethod::PUBLIC, "Assets", j) == kraken::OK)
+		return currencyVect;
 	
-	return json();
+	json res = j["result"];
+	for (json::iterator it = res.begin(); it != res.end(); it++) {
+		map<string, currency>::iterator mit = krakenCurrencies.find(it.key());
+		if (mit == krakenCurrencies.end()) continue;
+		currencyVect.push_back(mit->second);
+	}
+	return currencyVect;
 }
 
 float KrakenAPI::getCurrentUSDPrice(string& currency) { 
