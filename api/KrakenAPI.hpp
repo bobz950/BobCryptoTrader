@@ -9,12 +9,12 @@ class KrakenAPI : public ExchangeAPI {
 public:
 	KrakenAPI(string apikey, string secret);
 	~KrakenAPI();
-	json getCurrencPairs();
+	pairVect getCurrencPairs();
 	json getCurrencyInfo(vector<string>&);
 	float getCurrentUSDPrice(string&);
 	json getTickerInfo(vector<string>&);
 
-	json getAccountBalance();
+	map<currency, float> getAccountBalance();
 	json getTradeHistory();
 	json openOrders();
 	json closedOrders();

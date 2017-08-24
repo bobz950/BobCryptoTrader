@@ -1,16 +1,18 @@
 #ifndef EXCHANGE_API
 #define EXCHANGE_API
 #include "../settings.hpp"
+#include "../currencies.hpp"
 #include "Order.hpp"
+using namespace currencies;
 
 class ExchangeAPI {
 public:
-	virtual json getCurrencPairs() = 0;
+	virtual pairVect getCurrencPairs() = 0;
 	virtual json getCurrencyInfo(vector<string>&) = 0;
 	virtual float getCurrentUSDPrice(string&) = 0;
 	virtual json getTickerInfo(vector<string>&) = 0;
 
-	virtual json getAccountBalance() = 0;
+	virtual map<currency, float> getAccountBalance() = 0;
 	virtual json getTradeHistory() = 0;
 	virtual json openOrders() = 0;
 	virtual json closedOrders() = 0;

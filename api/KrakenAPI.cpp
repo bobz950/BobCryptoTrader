@@ -8,11 +8,33 @@ KrakenAPI::KrakenAPI(string apikey, string secret) : apiKey(apikey), host("api.k
 
 KrakenAPI::~KrakenAPI() {}
 
-json KrakenAPI::getCurrencPairs() {
+//returns vector of all currency pairs
+pairVect KrakenAPI::getCurrencPairs() {
 	json j;
-	if (this->sendRequest(RequestMethod::PUBLIC, "AssetPairs", j) == kraken::OK)
-		return j;
-	return json();
+	if (this->sendRequest(RequestMethod::PUBLIC, "AssetPairs", j) != kraken::OK)
+		return pairVect();
+	
+	pairVect pairs;
+	try {
+		map<string, currency>::iterator mit;
+		json res = j["result"];
+		for (json::iterator it = res.begin(); it != res.end(); it++) {
+			string strPair = it.value()["altname"].get<string>();
+			if (*(strPair.rbegin() + 1) == '.') continue; //kraken has duplicate entries ending in .d -- skip these
+
+			mit = krakenCurrencies.find(it.value()["base"].get<string>());
+			if (mit == krakenCurrencies.end()) continue; //if base currency not recognized, skip
+			currency base = mit->second;
+
+			mit = krakenCurrencies.find(it.value()["quote"].get<string>());
+			if (mit == krakenCurrencies.end()) continue; //if quote currency not recognized, skip
+			currency quote = mit->second;
+			
+			pairs.push_back(pair<string, CurrencyPair>(strPair, CurrencyPair(base, quote)));
+		}
+	}
+	catch (exception& e) { printf(e.what()); }
+	return pairs;
 }
 json KrakenAPI::getCurrencyInfo(vector<string>& currencies) { 
 	if (currencies.size() == 0)
@@ -39,7 +61,7 @@ float KrakenAPI::getCurrentUSDPrice(string& currency) {
 	try {
 		s = j.at("result").front().at("c").at(0).get<string>();
 	}
-	catch (out_of_range e) {
+	catch (out_of_range& e) {
 		printf("%s \n", e.what());
 		return 0.0f;
 	}
@@ -60,11 +82,22 @@ json KrakenAPI::getTickerInfo(vector<string>& pairs) {
 	return j;
 }
 
-json KrakenAPI::getAccountBalance() { 
+map<currency, float> KrakenAPI::getAccountBalance() {
+	map<currency, float> balanceMap;
 	json j;
-	if (this->sendRequest(RequestMethod::PRIVATE, "Balance", j) == kraken::OK)
-		return j;
-	return json();
+	if (this->sendRequest(RequestMethod::PRIVATE, "Balance", j) != kraken::OK)
+		return balanceMap;
+
+	json res = j["result"];
+	map<string, currency>::iterator mit;
+	for (json::iterator it = res.begin(); it != res.end(); it++) {
+		mit = krakenCurrencies.find(it.key());
+		if (mit == krakenCurrencies.end()) continue;
+		currency cur = mit->second;
+		string val = it.value().get<string>();
+		balanceMap.insert(pair<currency, float>(cur, stof(val)));
+	}
+	return balanceMap;
 }
 json KrakenAPI::getTradeHistory() { 
 	json j;
