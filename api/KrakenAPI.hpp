@@ -1,7 +1,9 @@
 #ifndef KRAKEN_API
 #define KRAKEN_API
 #include "../settings.hpp"
+#include "../errors.hpp"
 #include "ExchangeAPI.hpp"
+using error::kraken;
 
 class KrakenAPI : public ExchangeAPI {
 public:
@@ -34,7 +36,8 @@ private:
 	void setHeaders(string, paramVect*);
 	string getSignature(string& path, string& nonce, string& postdata);
 
-	string sendRequest(utilities::RequestMethod method, string loc, paramVect* queryVars = 0);
+	kraken sendRequest(utilities::RequestMethod method, string loc, json& result, paramVect* queryVars = 0);
+	kraken handleError(string& e);
 	
 	string host;
 	string apiKey;

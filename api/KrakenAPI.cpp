@@ -8,11 +8,11 @@ KrakenAPI::KrakenAPI(string apikey, string secret) : apiKey(apikey), host("api.k
 
 KrakenAPI::~KrakenAPI() {}
 
-json KrakenAPI::getCurrencPairs() { 
-	istringstream is(this->sendRequest(RequestMethod::PUBLIC, "AssetPairs"));
+json KrakenAPI::getCurrencPairs() {
 	json j;
-	is >> j;
-	return j;
+	if (this->sendRequest(RequestMethod::PUBLIC, "AssetPairs", j) == kraken::OK)
+		return j;
+	return json();
 }
 json KrakenAPI::getCurrencyInfo(vector<string>& currencies) { 
 	if (currencies.size() == 0)
@@ -23,18 +23,19 @@ json KrakenAPI::getCurrencyInfo(vector<string>& currencies) {
 		currencyList += "," + *it;
 
 	paramVect params{ pair<string, string>("asset", currencyList) };
-	istringstream is(this->sendRequest(RequestMethod::PUBLIC, "Assets", &params));
 	json j;
-	is >> j;
-	return j;
+	if (this->sendRequest(RequestMethod::PUBLIC, "Assets", j, &params) == kraken::OK)
+		return j;
+	
+	return json();
 }
 
 float KrakenAPI::getCurrentUSDPrice(string& currency) { 
 	paramVect p = { { "pair", currency + "USD" } };
-	string s = this->sendRequest(RequestMethod::PUBLIC, "Ticker", &p);
 	json j;
-	istringstream is(s);
-	is >> j;
+	if (this->sendRequest(RequestMethod::PUBLIC, "Ticker", j, &p) != kraken::OK)
+		return json();
+	string s;
 	try {
 		s = j.at("result").front().at("c").at(0).get<string>();
 	}
@@ -53,36 +54,36 @@ json KrakenAPI::getTickerInfo(vector<string>& pairs) {
 	for (vector<string>::iterator it = pairs.begin() + 1; it != pairs.end(); it++)
 		pairList += "," + *it;
 	paramVect params{ pair<string, string>("pair", pairList) };
-	istringstream is(this->sendRequest(RequestMethod::PUBLIC, "Ticker", &params));
 	json j;
-	is >> j;
+	if (this->sendRequest(RequestMethod::PUBLIC, "Ticker", j, &params) != kraken::OK)
+		return json();
 	return j;
 }
 
 json KrakenAPI::getAccountBalance() { 
-	istringstream is(this->sendRequest(RequestMethod::PRIVATE, "Balance"));
 	json j;
-	is >> j;
-	return j;
+	if (this->sendRequest(RequestMethod::PRIVATE, "Balance", j) == kraken::OK)
+		return j;
+	return json();
 }
 json KrakenAPI::getTradeHistory() { 
-	istringstream is(this->sendRequest(RequestMethod::PRIVATE, "TradesHistory"));
 	json j;
-	is >> j;
-	return j;
+	if (this->sendRequest(RequestMethod::PRIVATE, "TradesHistory", j) == kraken::OK)
+		return j;
+	return json();
 }
 
 json KrakenAPI::openOrders() {
-	istringstream is(this->sendRequest(RequestMethod::PRIVATE, "OpenOrders"));
 	json j;
-	is >> j;
-	return j;
+	if (this->sendRequest(RequestMethod::PRIVATE, "OpenOrders", j) == kraken::OK)
+		return j;
+	return json();
 }
 json KrakenAPI::closedOrders() {
-	istringstream is(this->sendRequest(RequestMethod::PRIVATE, "ClosedOrders"));
 	json j;
-	is >> j;
-	return j;
+	if (this->sendRequest(RequestMethod::PRIVATE, "ClosedOrders", j) == kraken::OK)
+		return j;
+	return json();
 }
 
 json KrakenAPI::placeOrder(Order& order) {
@@ -96,27 +97,27 @@ json KrakenAPI::placeOrder(Order& order) {
 	if (order.getLeverage() != 1.0f)
 		params.push_back(pair<string, string>("leverage", to_string(order.getLeverage())));
 
-	istringstream is(this->sendRequest(RequestMethod::PRIVATE, "AddOrder", &params));
 	json j;
-	is >> j;
-	return j;
+	if (this->sendRequest(RequestMethod::PRIVATE, "AddOrder", j, &params) == kraken::OK)
+		return j;
+	return json();
 }
 
 json KrakenAPI::cancelOrder(string& id) {
 	paramVect params{ {"txid", id} };
-	istringstream is(this->sendRequest(RequestMethod::PRIVATE, "CancelOrder", &params));
 	json j;
-	is >> j;
-	return j;
+	if (this->sendRequest(RequestMethod::PRIVATE, "CancelOrder", j, &params) == kraken::OK)
+		return j;
+	return json();
 }
 
 
 //note: open positions sometimes have more than 1 trade made to open at full amount. In this case, each trade will show up as its own position. Match the ordertxid of each position
 json KrakenAPI::openPositions() {
-	istringstream is(this->sendRequest(RequestMethod::PRIVATE, "OpenPositions"));
 	json j;
-	is >> j;
-	return j;
+	if (this->sendRequest(RequestMethod::PRIVATE, "OpenPositions", j) == kraken::OK)
+		return j;
+	return json();
 }
 
 json KrakenAPI::withdraw(string& currency, string& address, float amount) {
@@ -127,16 +128,16 @@ json KrakenAPI::withdraw(string& currency, string& address, float amount) {
 	this_thread::sleep_for(chrono::seconds(1));
 
 	paramVect params{ {"asset", currency}, {"key", address}, {"amount", to_string(amount)} };
-	istringstream is(this->sendRequest(RequestMethod::PRIVATE, "Withdraw", &params));
-	is >> j;
-	return j;
+	if (this->sendRequest(RequestMethod::PRIVATE, "Withdraw", j, &params) == kraken::OK)
+		return j;
+	return json();
 }
 
 string KrakenAPI::getWithdrawalMethod(string& currency, string& key, float amount) {
 	paramVect v{ { "asset", currency },{ "key", key },{ "amount", to_string(amount) } };
-	istringstream is(this->sendRequest(RequestMethod::PRIVATE, "WithdrawInfo", &v));
 	json j;
-	is >> j;
+	if (this->sendRequest(RequestMethod::PRIVATE, "WithdrawInfo", j, &v) != kraken::OK)
+		return "";
 	try {
 		return j["result"]["method"].get<string>();
 	}
@@ -152,9 +153,9 @@ json KrakenAPI::getDepositAddresses(string& currency) {
 		return j;
 	this_thread::sleep_for(chrono::seconds(1));
 	paramVect params{ {"asset", currency}, {"method", method} };
-	istringstream is(this->sendRequest(RequestMethod::PRIVATE, "DepositAddresses", &params));
-	is >> j;
-	return j;
+	if (this->sendRequest(RequestMethod::PRIVATE, "DepositAddresses", j, &params) == kraken::OK)
+		return j;
+	return json();
 }
 
 json KrakenAPI::newAddress(string& currency) {
@@ -164,29 +165,27 @@ json KrakenAPI::newAddress(string& currency) {
 		return j;
 	this_thread::sleep_for(chrono::seconds(1));
 	paramVect params{ { "asset", currency },{ "method", method }, {"new", "true"} };
-	istringstream is(this->sendRequest(RequestMethod::PRIVATE, "DepositAddresses", &params));
-	is >> j;
-	return j;
+	if(this->sendRequest(RequestMethod::PRIVATE, "DepositAddresses", j, &params) == kraken::OK)
+		return j;
+	return json();
 }
 
 
 string KrakenAPI::getDepositMethod(string& currency) {
 	paramVect v{ { "asset", currency } };
-	istringstream is(this->sendRequest(RequestMethod::PRIVATE, "DepositMethods", &v));
 	json j;
-	is >> j;
+	if (this->sendRequest(RequestMethod::PRIVATE, "DepositMethods", j, &v) != kraken::OK)
+		return "";
 	try {
 		return j["result"].at(0)["method"].get<string>();
 	}
-	catch (out_of_range) {
-		return "";
-	}
-	catch (domain_error e) {
+	catch (exception e) {
 		printf(j.dump().c_str());
+		return "";
 	}
 }
 
-string KrakenAPI::sendRequest(RequestMethod method, string loc, paramVect* queryVars) {
+kraken KrakenAPI::sendRequest(RequestMethod method, string loc, json& result, paramVect* queryVars) {
 	this->resetHeaders(); //clear the object data for headers so api sign can be changed
 	string uri = this->host + (method == RequestMethod::PUBLIC ? this->pubUrlBase : this->privUrlBase) + loc;
 	string url = "https://" + uri;
@@ -208,20 +207,31 @@ string KrakenAPI::sendRequest(RequestMethod method, string loc, paramVect* query
 	curl_easy_setopt(this->curl, CURLOPT_URL, url.c_str()); //set the url
 	curl_easy_perform(this->curl); //perform the request
 	//get the response and clear the response buffer
-	string response(utilities::res);
-	utilities::res.clear();
+	istringstream is(utilities::res);
+	is >> result;
+	utilities::res.clear(); //clear response string for next request
 	//free added header list
 	if (head)
 		curl_slist_free_all(head);
+	//if api returned an error, return false
+	if (result["error"].size() > 0) 
+		return this->handleError(result["error"].at(0).get<string>());
+	return kraken::OK;
+}
 
-	return response;
+kraken KrakenAPI::handleError(string& e) {
+	if (!e.compare("EAPI:Invalid signature"))
+		return kraken::INVALID_SIGNATURE;
+	else if (!e.compare("EGeneral:Invalid arguments"))
+		return kraken::INVALID_ARGUMENTS;
+	else return kraken::OTHER;
 }
 
 string KrakenAPI::testy() {
 	//paramVect p = { { "pair", "ETHUSD" } };
 	//return this->sendRequest(utilities::RequestMethod::GET, "Ticker", &p);
 	paramVect v{ {"asset", "XBT"}, {"key", "bittrex-btc"}, {"amount", "1"} };
-	return this->sendRequest(RequestMethod::PRIVATE, "WithdrawInfo", &v);
+	//return this->sendRequest(RequestMethod::PRIVATE, "WithdrawInfo", &v);
 }
 
 string KrakenAPI::getNonce() {
