@@ -1,9 +1,9 @@
 #include "Order.hpp"
 
-Order::Order(string pair, string type, string orderType, float price, float quantity, float leverage) 
+Order::Order(CurrencyPair pair, string type, string orderType, float price, float quantity, float leverage)
 	: _pair(pair), _type(type), _orderType(orderType), _price(price), _quantity(quantity), _leverage(leverage) {}
 
-string Order::getPair() {
+CurrencyPair Order::getPair() {
 	return this->_pair;
 }
 string Order::getType() {

@@ -8,6 +8,8 @@ KrakenAPI::KrakenAPI(string apikey, string secret) : apiKey(apikey), host("api.k
 
 KrakenAPI::~KrakenAPI() {}
 
+bool KrakenAPI::marginEnabled() { return true; }
+
 //returns vector of all currency pairs
 pairVect KrakenAPI::getCurrencPairs() {
 	json j;
@@ -121,7 +123,9 @@ json KrakenAPI::closedOrders() {
 
 json KrakenAPI::placeOrder(Order& order) {
 	paramVect params;
-	params.push_back(pair<string, string>("pair", order.getPair()));
+	CurrencyPair cp = order.getPair();
+	cp._exchange = exchange::KRAKEN; //set currencypair exchange to kraken
+	params.push_back(pair<string, string>("pair", cp));
 	params.push_back(pair<string, string>("type", order.getType()));
 	params.push_back(pair<string, string>("ordertype", order.getOrderType()));
 
@@ -146,11 +150,64 @@ json KrakenAPI::cancelOrder(string& id) {
 
 
 //note: open positions sometimes have more than 1 trade made to open at full amount. In this case, each trade will show up as its own position. Match the ordertxid of each position
-json KrakenAPI::openPositions() {
+vector<Position> KrakenAPI::openPositions() {
+	paramVect params{ {"docalcs", "true"} };
+	vector<Position> positionVect;
 	json j;
-	if (this->sendRequest(RequestMethod::PRIVATE, "OpenPositions", j) == kraken::OK)
-		return j;
-	return json();
+	if (this->sendRequest(RequestMethod::PRIVATE, "OpenPositions", j, &params) != kraken::OK)
+		return positionVect;
+	json result = j["result"];
+	map<string, Position*> positions;
+	for (json::iterator it = result.begin(); it != result.end(); it++) {
+		json jpos = it.value();
+		Position* pos = this->getPositionFromJson(jpos);
+		string positionid = it.key(); //get unique position id and push to new position
+		pos->pushPositionId(positionid); 
+		string txId = jpos["ordertxid"].get<string>();
+		map<string, Position*>::iterator mit = positions.find(txId);
+		if (mit == positions.end()) { //if no current position with matching ordertxid exists, add position to map
+			json jpair = this->getPairInfo(jpos["pair"].get<string>());
+			CurrencyPair cpair(krakenCurrencies[jpair["base"].get<string>()], krakenCurrencies[jpair["quote"].get<string>()]);
+			pos->setPair(cpair);
+			positions.insert(pair<string, Position*>(txId, pos));
+		}
+		else { //otherwise add positions together and free new position
+			Position* p = mit->second;
+			*p += *pos;
+			delete pos;
+		}
+	} //copy positions to vector and free objects
+	for (map<string, Position*>::iterator mit = positions.begin(); mit != positions.end(); mit++) {
+		positionVect.push_back(*mit->second);
+		delete mit->second;
+	}
+
+	return positionVect;
+}
+
+json KrakenAPI::getPairInfo(string& pair) {
+	paramVect params{ {"pair", pair} };
+	json j;
+	if (!this->sendRequest(RequestMethod::PUBLIC, "AssetPairs", j, &params) == kraken::OK)
+		return json();
+	return j["result"][pair];
+}
+
+Position* KrakenAPI::getPositionFromJson(json& j) {
+	float margin = stof(j["margin"].get<string>()); //margin numeric
+	float value = stof(j["value"].get<string>()); //value numeric
+	string snet = j["net"].get<string>(); //net string with + or - char
+	float net = stof(snet.substr(1, snet.size() - 1)); //chop off the +/- char at begin of string
+	float cost = stof(j["cost"].get<string>());
+	if (snet[0] == '-') net *= -1; //make negative of sign was -
+
+	string type = j["type"].get<string>();
+	string ordertype = j["ordertype"].get<string>();
+	float quantity = stof(j["vol"].get<string>());
+	float price = cost / quantity;
+	float leverage = margin / cost;
+	string txId = j["ordertxid"].get<string>();
+	return new Position (margin, value, net, cost, CurrencyPair(currency::NIL, currency::NIL), type, ordertype, price, quantity, leverage);
 }
 
 json KrakenAPI::withdraw(string& currency, string& address, float amount) {

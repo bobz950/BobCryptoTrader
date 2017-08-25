@@ -36,11 +36,7 @@ namespace currencies {
 		NIL = 'NIL'
 	};
 
-	struct CurrencyPair {
-		CurrencyPair(currency base, currency quote) : _base(base), _quote(quote) {}
-		currency _base;
-		currency _quote;
-	};
+	enum class exchange {ALL = 0, KRAKEN = 1, BITTREX = 2, POLONIEX = 4};
 
 	//constructs string representation of currency
 	static string currencyToString(currency c) {
@@ -69,6 +65,26 @@ namespace currencies {
 		return currency::NIL;
 	}
 
+	//helper function to convert currency enums to exchange-specific strings
+	static string toExchangeString(currency c, exchange e) {
+		switch (e) {
+		case exchange::ALL: return currencyToString(c);
+		case exchange::KRAKEN:
+			switch (c) {
+			case currency::BTC: return "XBT";
+			default: return currencyToString(c);
+			}
+		default: return currencyToString(c);
+		}
+	}
+
+	struct CurrencyPair {
+		CurrencyPair(currency base, currency quote) : _base(base), _quote(quote), _exchange(exchange::ALL) {}
+		exchange _exchange;
+		currency _base;
+		currency _quote;
+		operator string() const { return toExchangeString(this->_base, this->_exchange) + toExchangeString(this->_quote, this->_exchange);}
+	};
 
 	typedef vector<pair<string, CurrencyPair>> pairVect;
 	

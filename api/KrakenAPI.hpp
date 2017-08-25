@@ -9,6 +9,7 @@ class KrakenAPI : public ExchangeAPI {
 public:
 	KrakenAPI(string apikey, string secret);
 	~KrakenAPI();
+	bool marginEnabled();
 	pairVect getCurrencPairs();
 	vector<currency> getCurrencies();
 	float getCurrentUSDPrice(string&);
@@ -23,9 +24,11 @@ public:
 	json withdraw(string&, string&, float);
 	json getDepositAddresses(string&);
 	json newAddress(string&);
+	vector<Position> openPositions();
 
 	//non exchangeAPI methods
-	json openPositions();
+	json getPairInfo(string& pair);
+	Position* getPositionFromJson(json& j);
 
 	string testy();
 private:

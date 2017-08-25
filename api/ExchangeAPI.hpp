@@ -2,11 +2,13 @@
 #define EXCHANGE_API
 #include "../settings.hpp"
 #include "../currencies.hpp"
-#include "Order.hpp"
+#include "../trade/Order.hpp"
+#include "../trade/Position.hpp"
 using namespace currencies;
 
 class ExchangeAPI {
 public:
+	virtual bool marginEnabled() = 0;
 	virtual pairVect getCurrencPairs() = 0;
 	virtual vector<currency> getCurrencies() = 0;
 	virtual float getCurrentUSDPrice(string&) = 0;
@@ -21,6 +23,7 @@ public:
 	virtual json withdraw(string&, string&, float) = 0;
 	virtual json getDepositAddresses(string&) = 0;
 	virtual json newAddress(string&) = 0;
+	virtual vector<Position> openPositions() = 0;
 
 	ExchangeAPI() {
 		curl_global_init(CURL_GLOBAL_ALL);
