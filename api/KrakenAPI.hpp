@@ -17,8 +17,8 @@ public:
 
 	map<currency, float> getAccountBalance();
 	json getTradeHistory();
-	json openOrders();
-	json closedOrders();
+	vector<ProcessedOrder> openOrders();
+	vector<ProcessedOrder> closedOrders();
 	json placeOrder(Order& order);
 	json cancelOrder(string&);
 	json withdraw(string&, string&, float);
@@ -28,7 +28,9 @@ public:
 
 	//non exchangeAPI methods
 	json getPairInfo(string& pair);
+	CurrencyPair makePair(string& pair);
 	Position* getPositionFromJson(json& j);
+	vector<ProcessedOrder> getOrdersFromJson(json& j, bool open);
 
 	string testy();
 private:
@@ -41,7 +43,7 @@ private:
 
 	kraken sendRequest(utilities::RequestMethod method, string loc, json& result, paramVect* queryVars = 0);
 	kraken handleError(string& e);
-	
+
 	string host;
 	string apiKey;
 	string apiSecret;

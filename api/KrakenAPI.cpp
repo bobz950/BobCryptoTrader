@@ -108,17 +108,17 @@ json KrakenAPI::getTradeHistory() {
 	return json();
 }
 
-json KrakenAPI::openOrders() {
+vector<ProcessedOrder> KrakenAPI::openOrders() {
 	json j;
-	if (this->sendRequest(RequestMethod::PRIVATE, "OpenOrders", j) == kraken::OK)
-		return j;
-	return json();
+	if (this->sendRequest(RequestMethod::PRIVATE, "OpenOrders", j) != kraken::OK)
+		return vector<ProcessedOrder>();
+	return this->getOrdersFromJson(j, true);
 }
-json KrakenAPI::closedOrders() {
+vector<ProcessedOrder> KrakenAPI::closedOrders() {
 	json j;
-	if (this->sendRequest(RequestMethod::PRIVATE, "ClosedOrders", j) == kraken::OK)
-		return j;
-	return json();
+	if (this->sendRequest(RequestMethod::PRIVATE, "ClosedOrders", j) != kraken::OK)
+		return vector<ProcessedOrder>();
+	return this->getOrdersFromJson(j, false);
 }
 
 json KrakenAPI::placeOrder(Order& order) {
@@ -166,8 +166,7 @@ vector<Position> KrakenAPI::openPositions() {
 		string txId = jpos["ordertxid"].get<string>();
 		map<string, Position*>::iterator mit = positions.find(txId);
 		if (mit == positions.end()) { //if no current position with matching ordertxid exists, add position to map
-			json jpair = this->getPairInfo(jpos["pair"].get<string>());
-			CurrencyPair cpair(krakenCurrencies[jpair["base"].get<string>()], krakenCurrencies[jpair["quote"].get<string>()]);
+			CurrencyPair cpair = this->makePair(jpos["pair"].get<string>());
 			pos->setPair(cpair);
 			positions.insert(pair<string, Position*>(txId, pos));
 		}
@@ -190,7 +189,18 @@ json KrakenAPI::getPairInfo(string& pair) {
 	json j;
 	if (!this->sendRequest(RequestMethod::PUBLIC, "AssetPairs", j, &params) == kraken::OK)
 		return json();
-	return j["result"][pair];
+	return j["result"].begin().value();
+}
+
+CurrencyPair KrakenAPI::makePair(string& pair) {
+	map<string, CurrencyPair>::iterator mit = this->knownPairs.find(pair);
+	if (mit == this->knownPairs.end()) {
+		json jpair = this->getPairInfo(pair);
+		CurrencyPair cpair(krakenCurrencies[jpair["base"].get<string>()], krakenCurrencies[jpair["quote"].get<string>()]);
+		this->knownPairs.insert({ pair, cpair });
+		return cpair;
+	}
+	return mit->second;
 }
 
 Position* KrakenAPI::getPositionFromJson(json& j) {
@@ -207,7 +217,37 @@ Position* KrakenAPI::getPositionFromJson(json& j) {
 	float price = cost / quantity;
 	float leverage = margin / cost;
 	string txId = j["ordertxid"].get<string>();
-	return new Position (margin, value, net, cost, CurrencyPair(currency::NIL, currency::NIL), type, ordertype, price, quantity, leverage);
+	Order order(CurrencyPair(currency::NIL, currency::NIL), type, ordertype, price, quantity, leverage);
+	return new Position (margin, value, net, cost, order);
+}
+
+vector<ProcessedOrder> KrakenAPI::getOrdersFromJson(json& j, bool open) {
+	vector<ProcessedOrder> orderVect;
+	json res = j["result"];
+	if (open) res = res["open"];
+	else res = res["closed"];
+	for (json::iterator it = res.begin(); it != res.end(); it++) {
+		json jpos = it.value();
+		CurrencyPair cpair = this->makePair(jpos["descr"]["pair"].get<string>());
+		string type = jpos["descr"]["type"].get<string>();
+		string orderType = jpos["descr"]["ordertype"].get<string>();
+		float price = stof(jpos["descr"]["price"].get<string>());
+		float quantity = stof(jpos["vol"].get<string>());
+		float leverage = 1;
+		string lvg = jpos["descr"]["leverage"].get<string>();
+		if (isdigit(lvg[0])) leverage = stof(lvg);
+		Order order(cpair, type, orderType, price, quantity, leverage);
+
+		string id = it.key();
+		string time;
+		if (open) time = to_string(jpos["opentm"].get<float>());
+		else time = to_string(jpos["closetm"].get<float>());
+		string status = jpos["status"].get<string>();
+		float fee = stof(jpos["fee"].get<string>());
+		ProcessedOrder p(id, time, status, fee, order);
+		orderVect.push_back(p);
+	}
+	return orderVect;
 }
 
 json KrakenAPI::withdraw(string& currency, string& address, float amount) {

@@ -10,7 +10,7 @@ class Position : public Order {
 	float netProfitLoss;
 	float totalCost;
 public:
-	Position(float margin, float value, float net, float cost, CurrencyPair pair, string type, string orderType, float price, float quantity, float leverage);
+	Position(float margin, float value, float net, float cost, Order& order);
 	void pushPositionId(string id);
 	float getInitialMargin();
 	float getCurrentValue();

@@ -1,7 +1,7 @@
 #include "Position.hpp"
 
-Position::Position(float margin, float value, float net, float cost, CurrencyPair pair, string type, string orderType, float price, float quantity, float leverage) 
-	: initialMargin(margin), currentValue(value), netProfitLoss(net), totalCost(cost), Order(pair, type, orderType, price, quantity, leverage) {}
+Position::Position(float margin, float value, float net, float cost, Order& order)
+	: initialMargin(margin), currentValue(value), netProfitLoss(net), totalCost(cost), Order(order) {}
 
 void Position::pushPositionId(string id) { this->positionIds.push_back(id); }
 

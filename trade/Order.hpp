@@ -13,6 +13,7 @@ protected:
 	float _quantity;
 	float _leverage;
 public:
+	Order(const Order&);
 	Order(CurrencyPair pair, string type, string orderType, float price, float quantity, float leverage = 1.0f);
 	CurrencyPair getPair();
 	string getType();

@@ -3,6 +3,7 @@
 #include "../settings.hpp"
 #include "../currencies.hpp"
 #include "../trade/Order.hpp"
+#include "../trade/ProcessedOrder.hpp"
 #include "../trade/Position.hpp"
 using namespace currencies;
 
@@ -16,8 +17,8 @@ public:
 
 	virtual map<currency, float> getAccountBalance() = 0;
 	virtual json getTradeHistory() = 0;
-	virtual json openOrders() = 0;
-	virtual json closedOrders() = 0;
+	virtual vector<ProcessedOrder> openOrders() = 0;
+	virtual vector<ProcessedOrder> closedOrders() = 0;
 	virtual json placeOrder(Order&) = 0;
 	virtual json cancelOrder(string&) = 0;
 	virtual json withdraw(string&, string&, float) = 0;
@@ -36,6 +37,7 @@ public:
 	}
 	
 protected:
+	map<string, CurrencyPair> knownPairs; //keep known currencypairs in memory to prevent redudant api calls
 	CURL* curl;
 	void ready() {
 		if (this->curl) {
